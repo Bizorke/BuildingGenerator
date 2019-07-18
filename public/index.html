@@ -1,0 +1,623 @@
+<!doctype html>
+<html>
+<meta charset="utf-8"/>
+
+<script>
+	function Enum(values){
+		if(values){
+			for(var i = 0; i <  values.length; i++){
+				this[values[i]] = values[i];
+			}
+		}
+	}
+</script>
+
+<script src="./scripts/lib/jquery.js" ></script>
+<script src="./scripts/lib/dothtml.js" ></script>
+<script src="./scripts/lib/dotcss.js" ></script>
+<script src="./scripts/libaddons/ajaxfields.js" ></script>
+<script src="./scripts/lib/Sequencr.js"></script>
+<script src="./scripts/lib/three/three.js"></script>
+<script src="./scripts/lib/three/physijs/physi.js"></script>
+<script src="./scripts/lib/skybox.js"></script>
+<script src="./scripts/lib/Detector.js"></script>
+<script src="./scripts/libaddons/CustomControls.js"></script>
+<script src="./scripts/libaddons/walking-controls.js"></script>
+<script src="./scripts/libaddons/filemenus.js"></script>
+<!--
+<script src="./scripts/OBJLoader.js"></script>
+<script src="./scripts/MTLLoader.js"></script>
+-->
+<script src="./scripts/libaddons/CustomOBJExporter2.js"></script>
+
+<script src="./scripts/lib/download.js"></script>
+<script src="./scripts/building.js"></script>
+<script src="./scripts/Material.js"></script>
+<script src="./scripts/tools3d.js"></script>
+<!--<script src="./scripts/draw3d.js"></script>-->
+
+<link rel="stylesheet" type="text/css" href="./styles/style.css">
+<link rel="stylesheet" type="text/css" href="./styles/filemenu.css">
+
+<body id="body">
+</body>
+
+<script>
+
+"use strict";
+
+Physijs.scripts.worker = "./scripts/lib/three/physijs/physijs_worker.js";
+Physijs.scripts.ammo = "./ammo.js";
+
+document.addEventListener( "contextmenu", e => e.preventDefault(), false );
+
+var Data = new (class{
+
+	constructor(){}
+
+	getSaves(){
+		var saves = localStorage.getItem("_mazebuildersaves")
+		if(saves) {
+			saves = JSON.parse(saves);
+		}
+		else{
+			return {files: [], default: null};
+		}
+		return saves;
+	};
+
+	setDefaultSave(id){
+		var s = this.getSaves();
+		s.default = id;
+		localStorage.setItem("_mazebuildersaves", JSON.stringify(s));
+	};
+
+	deleteSave(id){
+		if(id){
+			window.localStorage.removeItem(id);
+			var saves = this.getSaves();
+			var fIndex = saves.files.findIndex((f) => f.uniqueId == id);
+			if(fIndex >= 0){
+				saves.files.splice(fIndex, 1);
+				window.localStorage.setItem("_mazebuildersaves", JSON.stringify(saves));
+			}
+		}
+	}
+
+	// Loads the default save, or creates a blank document.
+	reset(){
+		//console.log("LOADING");
+		Ui.clearUi();
+		Tools3d.clearBuilding();
+		if((typeof(Storage) !== "undefined")){
+			var saves = localStorage.getItem("_mazebuildersaves")
+			if(saves) {
+				saves = JSON.parse(saves);
+				if(saves.default){
+					var bs = localStorage.getItem(saves.default)
+					if(bs) {
+						Tools3d.loadFile(bs);
+					}
+					else Tools3d.addLevel();
+				}
+				else Tools3d.addLevel();
+			}
+			else Tools3d.addLevel();
+		}
+		else Tools3d.addLevel();
+
+		Ui.clearAndDisplayEverything();
+	}
+
+});
+
+var Ui = new (class{
+	constructor(){}
+	hideProgressOverlay(){
+		dotcss("#statusdiv").hide();
+	};
+	updateProgressOverlay(value){
+		$("#statusprogress").val(value);
+	};
+	showProgressOverlay(message){
+		dot("#statustext").empty().t(message);
+		$("#statusprogress").val(0);
+		dotcss("#statusdiv").show();
+	};
+
+	clearUi(){
+		dot("#levels-list").empty();
+		dot("#material-list-main").empty();
+		dot("#window-list-main").empty();
+	}
+
+	clearAndDisplayEverything(){
+		for(var m = 0; m < Tools3d.model.materials.length; m++){
+			dot("#material-list-main").materialli(null, Tools3d.model.materials[m]);
+		}
+		if(Tools3d.model.myWindows.length == 0){
+			var ww = new WallWindow();
+			addWindow(ww);
+		}
+
+		$("#level-1").prop("checked", true);
+		Tools3d.mLevelCursor = 0;
+		displayLevel();
+	}
+
+	addMaterialToMenu(){
+		dot("").materialchooser();
+	}
+
+	selectDefaultMaterial(index, type){
+		$(".material-chooser-default-paint-btn.selected").removeClass("selected");
+	}
+});
+
+function addWindow(ww){
+	Tools3d.model.addWindow(ww); //Add window with default properties.
+	//dot("#window-list-main").windowli(null, ww);
+}
+
+function displayLevel(){
+	//Renderer.renderBuliding(Tools3d.model);
+}
+
+dot.createWidget("toolMenu", function(caption, contents){
+	return dot.div(
+		dot.span(caption).style(dotcss.position("absolute").height(10).top(-10).left(10).backgroundColor("white"))
+		.div(
+			contents
+		)
+	).style(
+		dotcss.position("relative")
+		//.height(32)
+		.padding(5)
+		.paddingTop(10)
+		.border("2px solid gray")
+		.borderRadius(5)
+		.display("inline-block")
+		/*.width(74)
+		.height(500)*/
+	)
+});
+
+dot.createWidget("radioBtn", function(toolName, toolMode, title, icon, isSelected){
+	return dot.button().title(title).id(toolName + "-" + toolMode + "-radio")
+		.class("radio-btn " + (isSelected ? "radio-selected " : "") + toolName + "-radio")
+		.style(dotcss.backgroundImage(icon).cursor("pointer"))
+		.onclick(function(){Tools3d.changeSetting(toolName, toolMode);})
+})
+
+function selectDefaultRoofMaterial(element, material){$(".default-roof.selected").removeClass("selected");$(element).addClass("selected");Tools3d.settings.defaultroofmaterial = material;}
+function selectDefaultWallMaterial(element, material){$(".default-wall.selected").removeClass("selected");$(element).addClass("selected");Tools3d.settings.defaultwallmaterial = material;}
+function selectDefaultFloorMaterial(element, material){$(".default-floor.selected").removeClass("selected");$(element).addClass("selected");Tools3d.settings.defaultfloormaterial = material;}
+function selectDefaultCielingMaterial(element, material){$(".default-cieling.selected").removeClass("selected");$(element).addClass("selected");Tools3d.settings.defaultcielingmaterial = material;}
+
+dot.createWidget("materialchooser", function(material, defaultRoof, defaultWall, defaultFloor, defaultCieling){
+	var ret = dot.div(
+		dot.button().class("material-chooser-default-paint-btn default-roof" + (defaultRoof ? " selected" : "")).title("Roof default.").style(dotcss.backgroundImage("./images/paintroof.png").top(3)).onclick((e)=>{selectDefaultRoofMaterial(e.target, material);})
+		.button().class("material-chooser-default-paint-btn default-wall" + (defaultWall ? " selected" : "")).title("Wall default.").style(dotcss.backgroundImage("./images/paintwalls.png").top(21)).onclick((e)=>{selectDefaultWallMaterial(e.target, material);})
+		.button().class("material-chooser-default-paint-btn default-floor" + (defaultFloor ? " selected" : "")).title("Floor default.").style(dotcss.backgroundImage("./images/paintfloors.png").top(39)).onclick((e)=>{selectDefaultFloorMaterial(e.target, material);})
+		.button().class("material-chooser-default-paint-btn default-cieling" + (defaultCieling ? " selected" : "")).title("Tile bottom / cieling default.").style(dotcss.backgroundImage("./images/paintcieling.png").top(57)).onclick((e)=>{selectDefaultCielingMaterial(e.target, material);})
+	).class("material-chooser").style(dotcss.backgroundImage(material.texture));
+	/*var defaultRoofBtn = defaultRoofDot.getLast();
+	var defaultWallBtn = defaultWallDot.getLast();
+	var defaultFloorBtn = defaultFloorDot.getLast();
+	var defaultCielingBtn = defaultCielingDot.getLast();*/
+
+	return ret;
+});
+
+dot.createWidget("dialog", (id, width, height, content) => {
+	return dot.div(
+		dot.div(
+			dot.button("X") // x button
+			.onclick((e)=>{
+				dotcss("#" + id).hide();
+			})
+			.style(
+				dotcss.position("absolute")
+				.right(-4)
+				.top(-4)
+				.width(40)
+				.height(40)
+				.borderRadius(5)
+				.border("2px solid #333")
+				.cursor("pointer")
+				.fontWeight("bold")
+				
+			) 
+			.div(content) // body
+			.style(dotcss.padding(10))
+		).style(
+			dotcss//.padding(20)
+			.backgroundColor("#FFF")
+			.border("2px solid black")
+			.borderRadius(5)
+			.width(width)
+			.height(height)
+			.position("fixed")
+			.leftP(50)
+			.topP(50)
+			.marginLeft(-width/2)
+			.marginTop(-height/2)
+		)
+		.onclick((e)=>{
+			e.stopPropagation();
+		})
+	).onclick((e)=>{
+		dotcss("#" + id).hide();
+	})
+	.style(
+		dotcss.display("none")
+		.backgroundColor(0,0,0,0.7)
+		.position("fixed")
+		.top(0)
+		.bottom(0)
+		.left(0)
+		.right(0)
+	).id(id);
+});
+
+/*dot.createWidget("windowli", function(editor, wallWindow){
+	return dot.div(
+		dot.div(
+			"" + (Math.round(wallWindow.width * 10) / 10) + "x" + (Math.round(wallWindow.height * 10) / 10) + ", " + (Math.round(wallWindow.bottom * 10) / 10)
+		).class("window-li" + (wallWindow.index == Tools3d.settings.selectedwindow ? " selected-window" : "")).onclick(function(e){
+			//dotcss("#sel-material-sample").backgroundImage(material.texture);
+			$(".selected-window").removeClass("selected-window");
+			$(e.target).addClass("selected-window");
+			settings.selectedwindow = wallWindow.index;
+		})
+	);
+});*/
+
+var opennerSelectedFile = null;
+function obsoletedontcall(){
+	return dot.div( 
+		dot.div(
+			dot.div(
+				dot.div(
+					dot.toolMenu("TOOLS",
+						/*dot.radioBtn("tool", Tools.tiles, "Floors.", "./images/floor.png", true)
+						.radioBtn("tool", Tools.walls, "Walls.", "./images/wall.png")
+						.radioBtn("tool", Tools.room, "Room.", "./images/cube.png")
+						.br()
+						.radioBtn("tool", Tools.door, "Door.", "./images/door.png")
+						.radioBtn("tool", Tools.window, "Window.", "./images/window.png")
+						.radioBtn("tool", Tools.paint, "Paint.", "./images/paintbrush.png")*/
+						/*dot.toolBtn("Floors", "./images/floor.png", Tools.tiles)
+						.toolBtn("Walls", "./images/wall.png", Tools.walls)
+						.toolBtn("Room", "./images/cube.png", Tools.room)
+						.br()
+						.toolBtn("Door", "./images/door.png", Tools.door)
+						.toolBtn("Window", "./images/window.png", Tools.window)
+						.toolBtn("Paint", "./images/paintbrush.png", Tools.paint)*/
+
+						dot.br()
+						.hr()
+						.div(
+							
+							dot.input().type("checkbox").id("tile-autocieling-chk").label("Auto Cieling:").for("autocieling-chk")
+						).id("tiles-adv-options").class("adv-options").style(dotcss.display("none"))
+						.div(
+							dot.label("Floor Options:")
+							.br()
+							.radioBtn("flooroptions", Tools3d.FillModes.add, "Add.", "./images/layer_add.png", true)
+							.radioBtn("flooroptions", Tools3d.FillModes.ignore, "Ignore.", "./images/layer_skip.png")
+							.radioBtn("flooroptions", Tools3d.FillModes.remove, "Clear.", "./images/layer_remove.png")
+							.br()
+							.label("Wall Options:")
+							.br()
+							.radioBtn("walloptions", Tools3d.FillModes.add, "Add.", "./images/layer_add.png", true)
+							.radioBtn("walloptions", Tools3d.FillModes.ignore, "Ignore.", "./images/layer_skip.png")
+							.radioBtn("walloptions", Tools3d.FillModes.remove, "Clear.", "./images/layer_remove.png")
+
+
+						).id("room-adv-options").class("adv-options").style(dotcss.display("none"))
+						.div(
+							dot.label("Mode:")
+							.br()
+							.radioBtn("paintoptions", Tools3d.PaintModes.walls, "Paint walls.", "./images/paintwalls32.png", true)
+							.radioBtn("paintoptions", Tools3d.PaintModes.floors, "Paint floors.", "./images/paintfloors32.png")
+							.radioBtn("paintoptions", Tools3d.PaintModes.bottoms, "Paint tile bottoms.", "./images/paintcielings32.png")
+							.br()
+							.label("Material:")
+							.br()
+							//.div().id("sel-material-sample").style(dotcss.width(50).height(50))
+							.div().id("material-list-main").style(dotcss.widthP(100))
+						).id("paint-adv-options").class("adv-options").style(dotcss.display("none"))
+						.div(
+							dot.label("Window:")
+							.br()
+							.div().id("window-list-main").style(dotcss.widthP(100))
+						).id("window-adv-options").class("adv-options").style(dotcss.display("none"))
+						
+					)
+				).style(dotcss.display("table-cell").verticalAlign("top"))
+				.div(
+					dot.div(
+						dot.iterate(TILES_V, function(y){
+							return dot.iterate(TILES_H, function(x){
+								return dot.square(x, y);
+							})	
+						})
+					).id("designer").style(
+						dotcss.position("relative")
+						//.left(110)
+						.display("inline-block")
+						.backgroundColor("black")
+						.width(WALL_PX + TILES_H*(TILE_PX+WALL_PX))
+						.height(WALL_PX + TILES_V*(TILE_PX+WALL_PX))
+					)
+				).style(dotcss.verticalAlign("top").display("table-cell").padding(10))
+			).style(dotcss.display("table-row"))
+		).style(dotcss.display("table"))
+		.input().id("saveloader").type("file").style(dotcss.display("none")).onchange((e)=>{
+			var file = e.target.files[0];
+			if(!file) return;
+			var reader = new FileReader();
+			reader.onload = function(){
+				try{
+					var jsonmodel = JSON.parse(reader.result);
+					Ui.clearUi();
+					Tools3d.clearBuilding();
+					Tools3d.model.loadJson(jsonmodel);
+					Tools3d.model();
+					Ui.clearAndDisplayEverything();
+				}
+				catch(ex){console.log(ex);}
+			};
+			reader.readAsText(file);
+		})
+	).id("editor").style(dotcss.display("none"))
+}
+
+function refreshMainButtons(){
+	if(Tools3d.settings.previewmode){
+		$("#btn-no-filter").fadeOut(100);
+		$("#btn-wall-filter").fadeOut(100);
+		$("#btn-floor-filter").fadeOut(100);
+		$("#btn-up-level").fadeOut(100);
+		$("#btn-down-level").fadeOut(100);
+	}
+	else if(Tools3d.settings.wireframemode){
+		$("#btn-no-filter").fadeOut(100);
+		$("#btn-wall-filter").fadeOut(100);
+		$("#btn-floor-filter").fadeOut(100);
+		$("#btn-up-level").fadeIn(100);
+		$("#btn-down-level").fadeIn(100);
+	}
+	else{
+		$("#btn-no-filter").fadeIn(100);
+		$("#btn-wall-filter").fadeIn(100);
+		$("#btn-floor-filter").fadeIn(100);
+		$("#btn-up-level").fadeIn(100);
+		$("#btn-down-level").fadeIn(100);
+	}
+}
+
+function togglePreviewMode(){
+	//Renderer.renderBuilding(Tools3d.model);
+	if(!Tools3d.settings.previewmode){
+		Tools3d.changeSetting("tool", Tools3d.Tools.pointer);
+		//toggleToolMode(e, Tools3d.Tools.pointer);
+		dotcss("#maintoolspane").bottom.animate(-200).fadeOut(500);
+		dotcss("#maintoolsgeneralcontrols").bottom.animate(0);
+		Renderer.container.requestPointerLock();
+		Tools3d.switchToFirstPerson();
+		$("#btn-preview-mode").blur();
+	}
+	else{
+		dotcss("#maintoolspane").fadeIn(500).bottom.animate(0);
+		dotcss("#maintoolsgeneralcontrols").bottom.animate(200);
+		Tools3d.switchToFlyingCamera();
+	}
+	Tools3d.settings.previewmode = !Tools3d.settings.previewmode;
+	refreshMainButtons();
+}
+
+// Hook pointer lock state change events
+function pointerLockChanged(e){
+	console.log(Tools3d.settings.previewmode);
+	Tools3d.settings.previewmode && togglePreviewMode();
+}
+document.addEventListener('pointerlockchange', pointerLockChanged, false);
+document.addEventListener('mozpointerlockchange', pointerLockChanged, false);
+document.addEventListener('webkitpointerlockchange', pointerLockChanged, false);
+
+dot("#body")
+.filemenu(
+	dot.filemenudropdown("File", 
+		dot.filemenupane(
+			dot.filemenubtn("New", ()=>{Data.setDefaultSave(null);Data.reset();})
+			.filemenuhr()
+			.filemenubtn("Open From Cookie", ()=>{
+				opennerSelectedFile = null;
+				var saves = Data.getSaves();
+				dot("#openerfilelist").empty().each(saves.files, f=>{
+					return dot.div(
+						dot.span(f.name).br().span(f.size + " bytes").style(dotcss.color("gray").fontStyle("italic"))
+						.button().style(dotcss.position("absolute").right(24).top(16).height(32).width(32).backgroundImage("./images/trashcan.png").backgroundSize("contain").cursor("pointer")).onclick(e=>{
+							//delete
+							Data.deleteSave(f.uniqueId);
+							var parent = e.target.parentNode;
+							parent.parentNode.removeChild(parent);
+						})
+					).class("opennerfile").onclick((e)=>{
+						$(".opennerselected").removeClass("opennerselected");
+						e.target.classList.add("opennerselected");
+						opennerSelectedFile = f;
+					})
+				});
+				dotcss("#openeroverlay").fadeIn();
+			})
+			.filemenubtn("Open From File", ()=>{
+				$("#saveloader").trigger("click");
+			})
+			.filemenuhr()
+			.if(typeof(Storage) !== "undefined", function(){
+				return dot.filemenubtn("Save To Cookie", ()=>{
+					Tools3d.model.save();
+				})/*.filemenubtn("Save To Cookie As...", ()=>{
+					
+				})*/
+			})
+			.filemenubtn("Save To File", ()=>{
+				Tools3d.model.download();
+			})
+			.filemenuhr()
+			.filemenubtn("Export OBJ", ()=>{
+				Tools3d.exportToObj();
+			})
+		)
+	).filemenudropdown("Edit", 
+		dot.filemenupane(
+			dot.filemenubtn("Export Settings", () => {
+				dotcss("#export-settings-dialog").show();
+			})
+			.filemenubtn("Collision Mesh")
+		)
+	).filemenudropdown("Help", 
+		dot.filemenupane(
+			dot.filemenubtn("Controls", ()=>{alert("Lateral Movement: w, a, s, d\r\nVertical Movement: r, f\r\nRotation: Mouse Drag")})
+			.filemenubtn("Tutorials", ()=>{})
+			.filemenubtn("About", ()=>{})
+		)
+	)
+)
+/*.div(
+	dot.button("Editor").class("view-btn").onclick(function(){
+		dotcss("#renderer").hide();
+		dotcss("#editor").show();
+	})
+	.button("Preview").class("view-btn").onclick(function(){
+		dotcss("#editor").hide();
+		dotcss("#renderer").show();
+		this.renderWorker(Tools3d.model, settings.wireframemode, settings.previewmode);
+	}).style(dotcss.marginRight(10))
+).style(dotcss.marginBottom(10))*/
+
+.div(
+	dot.div(
+		dot.h1("Load")
+		.div().id("openerfilelist")
+		.div(
+			dot.button("Load").onclick(()=>{
+				if(opennerSelectedFile){
+					Data.setDefaultSave(opennerSelectedFile.uniqueId);
+					Data.reset(null, true);
+					dotcss("#openeroverlay").fadeOut();
+				}
+			})
+		).style(dotcss.width(500).margin("auto"))
+	).id("openerinner").onclick((e)=>{e.stopPropagation();})
+).id("openeroverlay").style(dotcss.display("none")).onclick(()=>{
+	dotcss("#openeroverlay").fadeOut();
+})
+.div(
+	dot.div().id("rendered-output")
+	.div(
+		dot
+		.button().id("btn-no-filter").style(dotcss.backgroundImage("./images/filter_clear.png").backgroundSize("contain").backgroundPosition("50%").width(32).height(39.3).right(126).bottom(10 + 39.3 + 10 + 39.3 + 10))
+			.onclick(()=>Tools3d.noFilter()) // All
+		.button().id("btn-wall-filter").style(dotcss.backgroundImage("./images/filter_delete.png").backgroundSize("contain").backgroundPosition("50%").width(32).height(39.3).right(126).bottom(10 + 39.3 + 10))
+			.onclick(()=>Tools3d.wallFilter()) // Walls
+		.button().id("btn-floor-filter").style(dotcss.backgroundImage("./images/filter_add.png").backgroundSize("contain").backgroundPosition("50%").width(32).height(39.3).right(126).bottom(10))
+			.onclick(()=>Tools3d.floorFilter()) // Floor
+		.button().id("btn-up-level").style(dotcss.backgroundImage("./images/arrow_up.png").backgroundSize("contain").backgroundPosition("50%").width(32).height(64).right(84).bottom(84))
+			.onclick(()=>Tools3d.levelUp())
+		.button().id("btn-down-level").style(dotcss.backgroundImage("./images/arrow_down.png").backgroundSize("contain").backgroundPosition("50%").width(32).height(64).right(84).bottom(10))
+			.onclick(()=>Tools3d.levelDown())
+		.button().style(dotcss.backgroundImage("./images/layer_grid.png").backgroundSize("contain").backgroundPosition("50%").width(64).height(64).right(10).bottom(84))
+			.onclick(()=>{
+				Tools3d.setWireframeMode(!Tools3d.settings.wireframemode);
+				//Renderer.renderBuilding(Tools3d.model);
+				refreshMainButtons();
+			})
+		// .button().id("btn-preview-mode").style(dotcss.backgroundImage("./images/3d_glasses.png").backgroundSize("contain").backgroundPosition("50%").width(64).height(64).right(10).bottom(10)).onclick((e)=>{
+		// 	togglePreviewMode();
+		// })
+	).id("maintoolsgeneralcontrols")
+	.div(
+		dot.div(
+			/*dot
+			.button("Rm")
+			.button("Wll")
+			.button("Flr")
+			.button("W/D")
+			.button("Pnt")
+			.button("Del")*/
+			dot
+			.radioBtn("tool", Tools3d.Tools.pointer, "Pointer", "./images/pointer.png", true)
+			.radioBtn("tool", Tools3d.Tools.room, "Room", "./images/cube.png")
+			.br()
+			.radioBtn("tool", Tools3d.Tools.tiles, "Floor", "./images/floor.png")
+			.radioBtn("tool", Tools3d.Tools.walls, "Wall", "./images/wall.png")
+			.br()
+			.radioBtn("tool", Tools3d.Tools.door, "Door", "./images/door.png")
+			.radioBtn("tool", Tools3d.Tools.window, "Window", "./images/window.png")
+			.br()
+			//.radioBtn("tool", Tools3d.Tools.paint, "Paint", "./images/paintbrush.png")
+			//.br()
+			.radioBtn("tool", Tools3d.Tools.roof, "Roof", "./images/buildroof64.png")
+			// .br()
+			// .radioBtn("tool", Tools3d.Tools.rooftriangle, "Roof Triangles", "./images/buildrooftriangle64.png")
+			// .radioBtn("tool", Tools3d.Tools.roofside, "Roof Sides", "./images/buildroofside.png")
+		).id("maintoolstoolcatbuttons")
+		.div(
+			dot.div().id("secondarytool-" + Tools3d.Tools.paint)
+		).id("secondarytools")
+	).id("maintoolspane")
+	//.div().id("maintoolspanedecorativecurve")
+	.div(
+		dot.div("Loading.").id("statustext")
+		.progress().id("statusprogress")
+	).id("statusdiv").style(dotcss.display("none"))
+).id("renderer").style(/*dotcss.display("none")*/)
+//Ui.showProgressOverlay("Hello, world!");
+
+// Dialogs.
+.dialog("export-settings-dialog", 600, 400, 
+	dot.h1("Export Settings")
+	.h2("Physics")
+	
+	.input().type("checkbox")
+	.label("Include physics group in OBJ file.")
+	.title("If checked, the exported mesh will include a group for the mesh collider. Otherwise, you will need to download the mesh collider obj seperately.")
+	.br()
+	
+	.input().type("checkbox")
+	.value("checked")
+	.label("Colliders on ceilings.")
+	.title("If checked, the collision mesh will include colliders for ceilings. Otherwise, the collision mesh will be slightly less costly, but game engines may allow objects to pass upwards through ceilings.")
+	
+	.h2("Render Options")
+	
+	// .input().type("checkbox")
+	// .label("Join all levels.")
+	// .title("If checked, the exported obj will group all geometry by material.")
+	// .br()
+
+	.input().type("checkbox")
+	.value("checked")
+	.label("Merge adjacent faces.")
+	.title("If checked, adjacent tiles, ceilings, walls, and edges with the same material will be optimized to be drawn with the minimal number of required polygons. Disabling this is discouraged, but may be useful for certain things, like exploding geometry.")
+
+)
+
+.dialog("alpha-dialog", 400, 300, 
+	dot.h1("Alpha")
+	
+	.p("This tool is presented as-is as an early proof of concept!")
+	.p("For more information, contact Joshua Sideris at jsideris@jsideris.com.")
+	.p("&copy; 2019 All Rights Reserved.")
+
+)
+
+dotcss("#alpha-dialog").show();
+
+</script>
+<script src="./scripts/3d.js"></script>
+</html>

@@ -1,0 +1,337 @@
+*{
+
+	/*user-select: none;*/
+	font-family: arial;
+	background-repeat: no-repeat;
+}
+
+.view-btn{
+	font-size: 28px;
+}
+
+.radio-btn{
+	height: 36px;
+	width: 36px;
+	/*display: inline-block;*/
+	border-top: 2px solid lightgray;
+	border-left: 2px solid lightgray;
+	border-bottom: 2px solid black;
+	border-right: 2px solid black;
+	background-color: lightgray;
+	background-position: 50% 50%;
+}
+
+.radio-selected{
+	border-bottom: 2px solid lightgray;
+	border-right: 2px solid lightgray;
+	border-top: 2px solid black;
+	border-left: 2px solid black;
+	background-color: lightblue;
+}
+
+.tool-selected{
+	border-bottom: 2px solid lightgray;
+	border-right: 2px solid lightgray;
+	border-top: 2px solid black;
+	border-left: 2px solid black;
+	background-color: lightblue;
+}
+
+.tool-not-selected{
+	border-top: 2px solid lightgray;
+	border-left: 2px solid lightgray;
+	border-bottom: 2px solid black;
+	border-right: 2px solid black;
+	background-color: lightgray;
+}
+.tile{
+	position: absolute;
+	background-color: midnightblue;
+	border: 3px solid midnightblue;
+}
+
+.tile:hover{
+	opacity: 0.6;
+}
+
+.selected-tile-below{
+	background-image: url(../images/belowfloor.png);
+	/*border-image:  url(../images/belowfloor.png);*/
+}
+
+.wall-top-on-below{
+	border-top-color: slateblue
+}
+.wall-right-on-below{
+	border-right-color: slateblue
+}
+.wall-bottom-on-below{
+	border-bottom-color: slateblue
+}
+.wall-left-on-below{
+	border-left-color: slateblue
+}
+
+.selected-tile{
+	background-color: dimgrey;
+	border: 3px solid dimgrey;
+	background-image: none;
+}
+.room-spec{
+	background-color: pink;
+	border-color: pink;
+}
+
+.wall-top-on{
+	border-top-color: azure;
+}
+.wall-right-on{
+	border-right-color: azure;
+}
+.wall-bottom-on{
+	border-bottom-color: azure;
+}
+.wall-left-on{
+	border-left-color: azure;
+}
+
+.door-top-on{
+	border-top-color: brown;
+}
+.door-right-on{
+	border-right-color: brown;
+}
+.door-bottom-on{
+	border-bottom-color: brown;
+}
+.door-left-on{
+	border-left-color: brown;
+}
+
+.window-top-on{
+	border-top-color: aqua;
+}
+.window-right-on{
+	border-right-color: aqua;
+}
+.window-bottom-on{
+	border-bottom-color: aqua;
+}
+.window-left-on{
+	border-left-color: aqua;
+}
+
+.material-li{
+	background-color: black;
+	position: relative;
+	width: 100%;
+	height: 36px;
+	cursor: pointer;
+	/*border: 2px solid black;*/
+	text-overflow: ellipsis;
+}
+
+.selected-material{
+	border: 2px solid red;
+}
+
+.window-li{
+	border: 2px solid black;
+	cursor: pointer;
+	height: 36px;
+	width: 100%;
+	line-height: 36px;
+	/*padding-left: 10px;*/
+}
+
+.selected-window{
+	border: 2px solid red;
+}
+
+#openeroverlay{
+	background-color: rgba(0,0,0,0.8);
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 200;
+	padding: 10%;
+	cursor: pointer;
+}
+
+#openerinner{
+	background-color: #EEE;
+	border-radius: 10px;
+	width: 100%;
+	height: 100%;
+	padding: 20px;
+	cursor: default;
+}
+
+#openerfilelist{
+	width: 500px;
+	height: 80%;
+	overflow-y: scroll;
+	overflow-x: hidden;
+	margin: auto;
+	border: 1px solid;
+	border-color: #222 #FFF #FFF #222;
+}
+
+#renderer{
+	position: fixed;
+	top: 40px;
+	bottom: 0;
+	left: 0;
+	right: 0;
+}
+
+#rendered-output{
+	position: absolute;
+	bottom: 0px;
+	top: 0;
+	right: 0;
+	left: 0;
+}
+
+.opennerfile{
+	position:relative;
+	background-color: #FFF;
+	width: 100%;
+	padding: 10px;
+	border-bottom: 1px solid #AAA;
+	cursor: pointer;
+}
+
+.opennerfile:hover{
+	background-color: #DDF;
+}
+
+.opennerfile.opennerselected{
+	background-color: #BBF;
+}
+
+#maintoolspane{
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 200px;
+	background-color: rgba(200,200,255,0.6);
+	border-top-left-radius: 10px;
+}
+/*#maintoolspanedecorativecurve{
+	position: absolute;
+	bottom: 200px;
+	right: 0px;
+	width: 40px;
+	height: 40px;
+	background-color: rgba(200,200,255,0.6);
+	clip-path: circle(20px at 20px 20px);
+}*/
+
+#maintoolsgeneralcontrols{
+	position: absolute;
+	bottom: 200px;
+	right: 0px;
+	width: 158px;
+	height: 148px;
+}
+
+#maintoolsgeneralcontrols > button{
+	position: absolute;
+	background-color: rgba(200,200,255,0.6);
+	cursor: pointer;
+}
+
+#maintoolstoolcatbuttons{
+	position: absolute;
+	left: 5px;
+	top: 0;
+	bottom: 0;
+	width: 72px;
+	padding-top: 5px;
+}
+
+#maintoolstoolcatbuttons > button{
+	display: inline-block;
+	margin-bottom: 0px;
+	/*width: 32px;
+	height: 32px;*/
+	background-color: rgba(200,200,255,0.6);
+	cursor: pointer;
+}
+
+#secondarytools{
+	position: absolute;
+	left: 77px;
+	bottom: 0px;
+	top: 0px;
+	right: 0px;
+	padding: 5px;
+}
+
+.material-chooser{
+	position: relative;
+	border-radius: 3px;
+	padding: 3px;
+	width: 64px;
+	height: 70px;
+	display: inline-block;
+	background-color: black;
+	margin-right: 3px;
+	cursor: pointer;
+}
+
+.material-chooser-default-paint-btn{
+	position: absolute;
+	border: none;
+	cursor: pointer;
+	background-color: rgba(100,0,0,0.8);
+	border-radius: 2px;
+	right: 0;
+	width: 16px;
+	height: 16px;
+	opacity: 0.4;
+}
+
+.material-chooser-default-paint-btn.selected{
+	opacity: 1;
+	background-color: rgba(50,50,255,0.8);
+	border: 1px solid black;
+}
+
+.material-chooser-default-paint-btn:hover{
+	opacity: 1;
+}
+
+#statusdiv{
+	position: absolute;
+	width: 500px;
+	height: 100px;
+	padding: 50px;
+	margin-top: -100px; /* Negative half of height. */
+	margin-left: -300px; /* Negative half of width. */
+	top: 50%;
+	left: 50%;
+	user-select: none;
+	background-color: rgba(0,0,0, 0.5);
+	border-radius: 20px;
+}
+
+#statustext{
+	height: 50px;
+	line-height: 50px;
+	font-size: 42px;
+	font-weight: bold;
+	color: white;
+	width: 100%;
+	text-align: center;
+	user-select: none;
+}
+
+#statusprogress{
+	height: 50px;
+	width: 100%;
+}
